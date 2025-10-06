@@ -1,63 +1,94 @@
-# 图片EXIF信息水印工具
+# 图片水印批处理 GUI 工具
 
-一个基于Python的交互式命令行工具，用于在图片上添加基于EXIF拍摄时间信息的水印。
+一个基于 Python + Tkinter 的图形化批处理水印工具，支持文字与图片水印、拖拽导入、自定义拖拽定位、模板保存、批量导出等功能。可用于为照片快速叠加时间戳、版权或自定义标识。
 
-## 功能
+## 主要特性
 
-- 读取图片EXIF信息中的拍摄时间
-- 将拍摄时间作为水印添加到图片上
-- 支持处理单个文件或整个目录
-- 交互式设置水印字体大小、颜色和位置
-- 处理后的图片保存在 `_watermark` 子目录中
-- 不依赖外部字体，通过图像缩放技术实现字体大小调节
-- 支持多种颜色格式（十六进制或名称）
-- 自动回退到文件修改时间（当EXIF信息不可用时）
+| 功能 | 说明 |
+|------|------|
+| EXIF/文件时间读取 | 自动提取拍摄时间，失败时回退文件修改时间 |
+| 文字水印 | 字体大小、颜色、可选背景框、旋转、透明度、描边、阴影 |
+| 图片水印 | 外部图片、缩放百分比、旋转、透明度 |
+| 位置 | 8 个预设 + 自定义拖拽（实时预览、红框提示） |
+| 自定义拖拽 | 采用 span 归一化，导出与预览位置一致 |
+| 批量处理 | 支持多文件 / 整个文件夹递归导入 |
+| 拖拽导入 | 直接将图片或文件夹拖到缩略图区域或预览区域 |
+| 模板系统 | 保存/加载/自动恢复上次参数（存储在用户家目录） |
+| 重命名规则 | 保留、前缀、后缀 |
+| 输出格式 | JPEG / PNG（JPEG 可调质量） |
+| 尺寸调整 | 不缩放 / 指定宽 / 指定高 / 百分比 |
+| 多平台 | Windows / macOS（需本地分别打包） |
 
-## 安装依赖
+## 下载 (Release)
+
+前往 GitHub Releases 页面（最新 tag）下载：
+
+- Windows: `WatermarkTool.exe` （双击运行）
+- macOS: （若提供）`WatermarkTool.app` / 压缩包，首次运行如被拦截可“右键 -> 打开”
+
+模板文件保存在：
+- Windows: `C:\Users\<用户名>\.image_watermark_templates`
+- macOS/Linux: `~/.image_watermark_templates`
+
+## 运行（源码方式）
 
 ```bash
-pip install pillow
-```
-
-## 使用方法
-
-运行程序后，按照提示输入相关信息：
-
-```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 python src/a.py
 ```
 
-程序将交互式地询问以下信息：
-1. 图片文件路径或目录路径（默认为当前目录）
-2. 字体大小（默认32，作为缩放因子）
-3. 字体颜色（十六进制格式如#ffffff或颜色名称，默认为白色）
-4. 水印位置（默认右下角）
+## 依赖
 
-输入 'Ctrl+C' 退出程序。
+`Pillow`、`piexif`、`tkinter`（Python 自带）、可选：`tkinterdnd2`（拖拽增强，未安装也能运行）。
 
-## 支持的图片格式
+## 打包 (PyInstaller)
 
-- JPEG
-- PNG
-- TIFF
-- BMP
-- WebP
+示例（目录版，包含资源 `_watermark`）:
+```bash
+pyinstaller --name WatermarkTool --noconsole --add-data "_watermark/*;_watermark" src/a.py
+```
+单文件：
+```bash
+pyinstaller --onefile --noconsole -n WatermarkTool src/a.py
+```
+构建产物在 `dist/` 下。
 
-## 水印位置选项
+## 位置一致性说明
 
-1. 左上角 (top-left)
-2. 右上角 (top-right)
-3. 居中 (center)
-4. 左下角 (bottom-left)
-5. 右下角 (bottom-right) [默认]
+自定义拖拽使用 “可用空间 (图片尺寸 - 水印尺寸)” 的 span 归一化，确保预览与导出位置保持一致，即使导出时进行了缩放也能匹配当前预览逻辑（若导出时启用不同尺寸，应在预览前应用相同缩放策略以完全视觉一致）。
 
-## 工作原理
+## 模板文件结构 (示例)
+```json
+{
+	"text": "2025-10-06",
+	"wm_type": "text",
+	"font_size": 32,
+	"color": "#ffffff",
+	"pos": "右下",
+	"custom_pos_rel": [0.35, 0.62],
+	"custom_pos_span": true,
+	"opacity": 0.7,
+	"rotation": 0,
+	"stroke_enable": 1,
+	"shadow_enable": 1
+}
+```
 
-1. 程序启动后进入交互模式
-2. 用户输入图片文件路径或目录路径
-3. 程序扫描指定路径下的所有支持的图片文件
-4. 对于每张图片，程序从EXIF信息中提取拍摄时间（尝试DateTimeOriginal、DateTime、DateTimeDigitized标签）
-5. 如果没有EXIF信息，则使用文件修改时间
-6. 将时间格式化为 YYYY-MM-DD 格式作为水印文本
-7. 用户可自定义水印的字体大小（通过图像缩放实现）、颜色和位置
-8. 程序将处理后的图片保存在原目录的 `_watermark` 子目录中
+## 常见问题
+
+| 问题 | 说明 | 解决 |
+|------|------|------|
+| 拖拽无效 | 未安装 `tkinterdnd2` 或平台不支持 | `pip install tkinterdnd2`，否则使用按钮导入 |
+| 预览位置与导出不同 | 旧模板坐标格式 | 重新拖动保存模板；新模板写入 `custom_pos_span` |
+| macOS 打不开 | Gatekeeper 拦截 | 右键 -> 打开；或 `xattr -d com.apple.quarantine <App>` |
+| 中文字体缺失 | 未找到系统字体 | 选择“(自动)”或安装中文字体 |
+
+## License
+
+见 `LICENSE`。
+
+## 致谢
+
+感谢 Pillow、tkinterdnd2 等开源项目。
